@@ -99,11 +99,11 @@ apiCall = async (query, requestArrays) => {
 
 
 
-exports.realtime = async (event, context) => {
+exports.realtime = async (key, context) => {
   try {
     
     const requestArrays = []
-    await googleTrends.realTimeTrends({ geo: 'US' }, async(err, res) => {
+    await googleTrends.realTimeTrends({ category: 'all', geo: 'US' }, async(err, res) => {
       
       if(res) {
         let resp = JSON.parse(res)
@@ -153,5 +153,62 @@ exports.realtime = async (event, context) => {
       return err;
   }
 };
+
+
+exports.topics = async (key) => {
+  try {
+    
+    const requestArrays = []
+    await googleTrends.relatedQueries({ keyword:key, geo: 'IN' }, async(err, res) => {
+      console.log(res)
+      // if(res) {
+      //   let resp = JSON.parse(res)
+      //   resp = resp.storySummaries.trendingStories
+      //   console.log(typeof res)
+
+      //   for (let i=0; i < resp.length; i++) {
+          
+      //     // console.log(resp[i].title.query)
+      //     // let temp = resp[i].title.query.replace(/\s+/g, '').toLowerCase()
+      //     requestArrays.push(...resp[i].entityNames)
+          
+      //   }
+      //   console.log(requestArrays)
+      //   const query = `
+      //   query {
+      //     registrations(where: { labelName_not: null, labelName_in: ["${requestArrays.join('","')}"] }) {
+      //       expiryDate
+      //       labelName,
+      //       cost,
+      //       registrationDate,
+            
+      //       domain {
+      //         name
+      //         labelName,
+      //         isMigrated,
+      //         subdomainCount,
+      //         labelhash,
+      //         owner
+      //       }
+      //     }
+      //   }
+      //   `
+      //   const resps = await apiCall(query, requestArrays)
+        
+      //   // console.log(client)
+
+       
+        
+        
+        
+       
+      // }        
+    })
+  } catch (err) {
+      console.log(err, 'sdjksjkdsk');
+      return err;
+  }
+};
+
 this.lambdaHandler()
 this.realtime()
