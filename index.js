@@ -153,5 +153,5 @@ exports.realtime = async (event, context) => {
       return err;
   }
 };
-
+this.lambdaHandler()
 this.realtime()
