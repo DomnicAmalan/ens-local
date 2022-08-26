@@ -97,4 +97,61 @@ apiCall = async (query, requestArrays) => {
   }
 }
 
-this.lambdaHandler()
+
+
+exports.realtime = async (event, context) => {
+  try {
+    
+    const requestArrays = []
+    await googleTrends.realTimeTrends({ geo: 'US' }, async(err, res) => {
+      
+      if(res) {
+        let resp = JSON.parse(res)
+        resp = resp.storySummaries.trendingStories
+        console.log(typeof res)
+
+        for (let i=0; i < resp.length; i++) {
+          
+          // console.log(resp[i].title.query)
+          // let temp = resp[i].title.query.replace(/\s+/g, '').toLowerCase()
+          requestArrays.push(...resp[i].entityNames)
+          
+        }
+        console.log(requestArrays)
+        const query = `
+        query {
+          registrations(where: { labelName_not: null, labelName_in: ["${requestArrays.join('","')}"] }) {
+            expiryDate
+            labelName,
+            cost,
+            registrationDate,
+            
+            domain {
+              name
+              labelName,
+              isMigrated,
+              subdomainCount,
+              labelhash,
+              owner
+            }
+          }
+        }
+        `
+        const resps = await apiCall(query, requestArrays)
+        
+        // console.log(client)
+
+       
+        
+        
+        
+       
+      }        
+    })
+  } catch (err) {
+      console.log(err, 'sdjksjkdsk');
+      return err;
+  }
+};
+
+this.realtime()
