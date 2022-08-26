@@ -74,19 +74,22 @@ apiCall = async (query, requestArrays) => {
   try {
     const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
     const resultArray = data.data.registrations.map((item) => item.labelName)
-    const checker = requestArrays.filter(x => !resultArray.includes(x))
+    const checker = requestArrays.filter(x => !resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', ${true})`)
+    const nonchecker = requestArrays.filter(x => resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', ${false})`)
     const client = new Client({
       user: "postgres",
       host: "localhost",
       password: "admin",
       database: 'postgres'
     });
-    console.log(client)
     await client.connect();
     const queryText =
-        `INSERT INTO ens_domains(domain) VALUES(${checker.map((v,i) => `$${i+1}`).join('),(')}) RETURNING (domain)`;
+        `INSERT INTO ens_domains(domain, status) VALUES ${checker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
+    const queryText1 =
+    `INSERT INTO ens_domains(domain, status) VALUES ${nonchecker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
     console.log(queryText)
-    const res = await client.query(queryText, checker);
+    const res = await client.query(queryText);
+    const res1 = await client.query(queryText1);
     await client.end();
    return checker
   } catch(e) {
