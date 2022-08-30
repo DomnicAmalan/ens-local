@@ -52,7 +52,7 @@ exports.lambdaHandler = async (region) => {
             }
           }
           `
-          await apiCall(query, requestArrays, region, 'dailytrend')         
+          await apiCall(query, requestArrays, region, 'all', 'dailytrend')         
         }        
       })
     } catch (err) {
@@ -61,13 +61,13 @@ exports.lambdaHandler = async (region) => {
     }
 };
 
-apiCall = async (query, requestArrays, region, category) => {
+apiCall = async (query, requestArrays, region, category, bucket) => {
   try {
     const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
     let resultArray = data.data.registrations.map((item) => item.labelName)
     resultArray = [...new Set(resultArray)];
-    const checker = requestArrays.filter(x => !resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', true, '${region}', ${item.length}, '${category}')`)
-    const nonchecker = requestArrays.filter(x => resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', false, '${region}', ${item.length}, '${category}')`)
+    const checker = requestArrays.filter(x => !resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', true, '${region}', ${item.length}, '${category}', '${bucket}')`)
+    const nonchecker = requestArrays.filter(x => resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', false, '${region}', ${item.length}, '${category}', '${bucket}')`)
     const client = new Client({
       user: "postgres",
       host: "localhost",
@@ -76,10 +76,27 @@ apiCall = async (query, requestArrays, region, category) => {
     });
     await client.connect();
     const queryText =
-      `INSERT INTO ens_domains(domain, status, region, kw_length, category) VALUES ${checker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
+      `INSERT INTO 
+        ens_domains(domain, status, region, kw_length, category, input_bucket) 
+        VALUES ${checker}  
+        ON CONFLICT (domain) 
+        DO UPDATE SET 
+          status = excluded.status,
+          category = excluded.category,
+          input_bucket = excluded.input_bucket,
+          region = excluded.region
+        RETURNING (domain)`;
     const queryText1 =
-      `INSERT INTO ens_domains(domain, status, region, kw_length, category) VALUES ${nonchecker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
-    console.log(queryText, queryText1)
+      `INSERT INTO 
+        ens_domains(domain, status, region, kw_length, category, input_bucket) 
+        VALUES ${nonchecker}  
+        ON CONFLICT (domain) 
+        DO UPDATE SET 
+          status = excluded.status,
+          category = excluded.category,
+          input_bucket = excluded.input_bucket,
+          region = excluded.region
+        RETURNING (domain)`;
     if(checker.length){
       const res = await client.query(queryText);
     }
@@ -130,7 +147,8 @@ exports.realtime = async (region, category='all') => {
           }
         }
         `
-        const resps = await apiCall(query, requestArrays, region, category)
+        
+        const resps = await apiCall(query, requestArrays, region, category, 'realtime')
       }        
     })
   } catch (err) {
@@ -139,5 +157,55 @@ exports.realtime = async (region, category='all') => {
   }
 };
 
+exports.checkExisting = async () => {
+  try {
+    const client = new Client({
+      user: "postgres",
+      host: "localhost",
+      password: "admin",
+      database: 'postgres'
+    });
+    await client.connect();
+    const queryText =
+    `SELECT domain from ens_domains`;
+    const res = await client.query(queryText);
+    console.log(res.rows)
+
+    let requestArrays = []
+    for (let i=0; i < res.rows.length; i++) {
+      const name = res.rows[i].domain.replace(/\s+/g, '').toLowerCase()
+      if(!requestArrays.includes(name)){
+        requestArrays.push(name)
+      }
+    }
+    const query = `
+        query {
+          registrations(where: { labelName_not: null, labelName_in: ["${requestArrays.join('","')}"] }) {
+            expiryDate
+            labelName,
+            cost,
+            registrationDate,
+            
+            domain {
+              name
+              labelName,
+              isMigrated,
+              subdomainCount,
+              labelhash,
+              owner
+            }
+          }
+        }
+        `
+        console.log(query)
+        // const queryText1 = `UPDATE ens_domains SET `
+        // const resps = await apiCall(query, requestArrays, region, category, 'realtime')
+  } catch(e) {
+    console.log(e, 'sdjksjkdsk');
+    return e;
+  } 
+}
+
 this.lambdaHandler('US')
 this.realtime('US')
+// this.checkExisting()
