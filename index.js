@@ -208,5 +208,5 @@ exports.checkExisting = async () => {
 }
 
 this.lambdaHandler('US')
-// // this.realtime('US')
+this.realtime('US')
 // this.checkExisting()
