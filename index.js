@@ -139,5 +139,5 @@ exports.realtime = async (region, category='all') => {
   }
 };
 
-// this.lambdaHandler('US')
+this.lambdaHandler('US')
 this.realtime('US')
