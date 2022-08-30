@@ -19,19 +19,18 @@ let response;
  */
 
 
-exports.lambdaHandler = async (event, context) => {
+exports.lambdaHandler = async (region) => {
     try {
-      
       const requestArrays = []
-      await googleTrends.dailyTrends({ geo: 'US' }, async(err, res) => {
+      await googleTrends.dailyTrends({ geo: region }, async(err, res) => {
         if(res) {
           let resp = JSON.parse(res)
           resp = resp.default.trendingSearchesDays[0].trendingSearches
           for (let i=0; i < resp.length; i++) {
-            
-            // console.log(resp[i].title.query)
             let temp = resp[i].title.query.replace(/\s+/g, '').toLowerCase()
-            requestArrays.push(temp)
+            if(!requestArrays.includes(temp)) {
+              requestArrays.push(temp)
+            }
             
           }
           const query = `
@@ -53,15 +52,7 @@ exports.lambdaHandler = async (event, context) => {
             }
           }
           `
-          const resps = await apiCall(query, requestArrays)
-          
-          console.log(client)
-
-         
-          
-          
-          
-         
+          await apiCall(query, requestArrays, region, 'dailytrend')         
         }        
       })
     } catch (err) {
@@ -70,12 +61,13 @@ exports.lambdaHandler = async (event, context) => {
     }
 };
 
-apiCall = async (query, requestArrays) => {
+apiCall = async (query, requestArrays, region, category) => {
   try {
     const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
-    const resultArray = data.data.registrations.map((item) => item.labelName)
-    const checker = requestArrays.filter(x => !resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', ${true})`)
-    const nonchecker = requestArrays.filter(x => resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', ${false})`)
+    let resultArray = data.data.registrations.map((item) => item.labelName)
+    resultArray = [...new Set(resultArray)];
+    const checker = requestArrays.filter(x => !resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', true, '${region}', ${item.length}, '${category}')`)
+    const nonchecker = requestArrays.filter(x => resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', false, '${region}', ${item.length}, '${category}')`)
     const client = new Client({
       user: "postgres",
       host: "localhost",
@@ -84,12 +76,16 @@ apiCall = async (query, requestArrays) => {
     });
     await client.connect();
     const queryText =
-        `INSERT INTO ens_domains(domain, status) VALUES ${checker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
+      `INSERT INTO ens_domains(domain, status, region, kw_length, category) VALUES ${checker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
     const queryText1 =
-    `INSERT INTO ens_domains(domain, status) VALUES ${nonchecker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
-    console.log(queryText)
-    const res = await client.query(queryText);
+      `INSERT INTO ens_domains(domain, status, region, kw_length, category) VALUES ${nonchecker}  ON CONFLICT (domain) DO UPDATE SET status = excluded.status RETURNING (domain)`;
+    console.log(queryText, queryText1)
+    if(checker.length){
+      const res = await client.query(queryText);
+    }
+    if(nonchecker) {
     const res1 = await client.query(queryText1);
+    }
     await client.end();
    return checker
   } catch(e) {
@@ -99,25 +95,22 @@ apiCall = async (query, requestArrays) => {
 
 
 
-exports.realtime = async (key, context) => {
+exports.realtime = async (region, category='all') => {
   try {
     
-    const requestArrays = []
-    await googleTrends.realTimeTrends({ category: 'all', geo: 'US' }, async(err, res) => {
-      
+    await googleTrends.realTimeTrends({ category: category, geo: region }, async(err, res) => {
       if(res) {
         let resp = JSON.parse(res)
         resp = resp.storySummaries.trendingStories
-        console.log(typeof res)
-
+        const requestArrays = []
         for (let i=0; i < resp.length; i++) {
-          
-          // console.log(resp[i].title.query)
-          // let temp = resp[i].title.query.replace(/\s+/g, '').toLowerCase()
-          requestArrays.push(...resp[i].entityNames)
-          
+          for (let j = 0; j<resp[i].entityNames.length; j++) {
+            const name = resp[i].entityNames[j].replace(/\s+/g, '').toLowerCase()
+            if(!requestArrays.includes(name)){
+              requestArrays.push(name)
+            }
+          }
         }
-        console.log(requestArrays)
         const query = `
         query {
           registrations(where: { labelName_not: null, labelName_in: ["${requestArrays.join('","')}"] }) {
@@ -137,15 +130,7 @@ exports.realtime = async (key, context) => {
           }
         }
         `
-        const resps = await apiCall(query, requestArrays)
-        
-        // console.log(client)
-
-       
-        
-        
-        
-       
+        const resps = await apiCall(query, requestArrays, region, category)
       }        
     })
   } catch (err) {
@@ -154,61 +139,5 @@ exports.realtime = async (key, context) => {
   }
 };
 
-
-exports.topics = async (key) => {
-  try {
-    
-    const requestArrays = []
-    await googleTrends.relatedQueries({ keyword:key, geo: 'IN' }, async(err, res) => {
-      console.log(res)
-      // if(res) {
-      //   let resp = JSON.parse(res)
-      //   resp = resp.storySummaries.trendingStories
-      //   console.log(typeof res)
-
-      //   for (let i=0; i < resp.length; i++) {
-          
-      //     // console.log(resp[i].title.query)
-      //     // let temp = resp[i].title.query.replace(/\s+/g, '').toLowerCase()
-      //     requestArrays.push(...resp[i].entityNames)
-          
-      //   }
-      //   console.log(requestArrays)
-      //   const query = `
-      //   query {
-      //     registrations(where: { labelName_not: null, labelName_in: ["${requestArrays.join('","')}"] }) {
-      //       expiryDate
-      //       labelName,
-      //       cost,
-      //       registrationDate,
-            
-      //       domain {
-      //         name
-      //         labelName,
-      //         isMigrated,
-      //         subdomainCount,
-      //         labelhash,
-      //         owner
-      //       }
-      //     }
-      //   }
-      //   `
-      //   const resps = await apiCall(query, requestArrays)
-        
-      //   // console.log(client)
-
-       
-        
-        
-        
-       
-      // }        
-    })
-  } catch (err) {
-      console.log(err, 'sdjksjkdsk');
-      return err;
-  }
-};
-
-this.lambdaHandler()
-this.realtime()
+// this.lambdaHandler('US')
+this.realtime('US')
