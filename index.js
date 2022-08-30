@@ -25,13 +25,14 @@ exports.lambdaHandler = async (region) => {
       await googleTrends.dailyTrends({ geo: region }, async(err, res) => {
         if(res) {
           let resp = JSON.parse(res)
-          resp = resp.default.trendingSearchesDays[0].trendingSearches
+          resp = resp.default.trendingSearchesDays
           for (let i=0; i < resp.length; i++) {
-            let temp = resp[i].title.query.replace(/\s+/g, '').toLowerCase()
-            if(!requestArrays.includes(temp)) {
-              requestArrays.push(temp)
+            for (let j=0; j < resp[i].trendingSearches.length; j ++) {
+              let temp = resp[i].trendingSearches[j].title.query.replace(/\s+/g, '').toLowerCase()
+              if(!requestArrays.includes(temp)) {
+                requestArrays.push(temp)
+              }
             }
-            
           }
           const query = `
           query {
@@ -169,7 +170,6 @@ exports.checkExisting = async () => {
     const queryText =
     `SELECT domain from ens_domains`;
     const res = await client.query(queryText);
-    console.log(res.rows)
 
     let requestArrays = []
     for (let i=0; i < res.rows.length; i++) {
@@ -197,7 +197,8 @@ exports.checkExisting = async () => {
           }
         }
         `
-        console.log(query)
+        const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
+        console.log(data)
         // const queryText1 = `UPDATE ens_domains SET `
         // const resps = await apiCall(query, requestArrays, region, category, 'realtime')
   } catch(e) {
@@ -207,5 +208,5 @@ exports.checkExisting = async () => {
 }
 
 this.lambdaHandler('US')
-this.realtime('US')
+// // this.realtime('US')
 // this.checkExisting()
