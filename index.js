@@ -228,6 +228,12 @@ exports.checkExisting = async () => {
   } 
 }
 
-this.lambdaHandler('IN')
-this.realtime('IN', 'b')
+this.lambdaHandler('US')
+this.realtime('US')
+this.realtime('US','b')
+this.realtime('US','e')
+this.realtime('US','m')
+this.realtime('US','t')
+this.realtime('US','s')
+this.realtime('US','h')
 // this.checkExisting()
