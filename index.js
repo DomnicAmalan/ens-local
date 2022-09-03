@@ -66,18 +66,13 @@ exports.lambdaHandler = async (region) => {
 
 apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) => {
   try {
-    // console.log(mainkeyword)
     const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
-    const presentIndex = []
     let checker = []
     let nonchecker = []
     const presentItems = data.data.registrations.map((item, idx) => item.labelName)
     for (let index = 0; index < requestArrays.length; index++) {
       const element = requestArrays[index];
-      // const matched = presentItems.indexOf(element)
       if(presentItems.includes(element)) {
-        // console.log(element, presentItems)
-        // console.log(element, matched)
         const matched = mainkeyword[requestArrays.indexOf(element)]
         if(matched) {
           checker.push(`('${element}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
@@ -95,7 +90,6 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
       password: "admin",
       database: 'postgres'
     });
-    console.log(checker)
     await client.connect();
     const queryText =
       `INSERT INTO 
