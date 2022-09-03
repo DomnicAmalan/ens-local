@@ -113,7 +113,6 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
           input_bucket = excluded.input_bucket,
           region = excluded.region
         RETURNING (domain)`;
-    console.log(queryText1)
     if(checker.length){
       const res = await client.query(queryText);
     }
@@ -225,6 +224,6 @@ exports.checkExisting = async () => {
   } 
 }
 
-// this.lambdaHandler('IN')
+this.lambdaHandler('IN')
 this.realtime('IN', 'b')
 // this.checkExisting()
