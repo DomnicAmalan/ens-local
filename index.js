@@ -75,12 +75,12 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
       if(presentItems.includes(element)) {
         const matched = mainkeyword[requestArrays.indexOf(element)]
         if(matched) {
-          checker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+          checker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.split(' ').length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
         }
        
       } else {
         const matched = mainkeyword[requestArrays.indexOf(element)]
-        nonchecker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+        nonchecker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.split(' ').length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
       }
 
     }
