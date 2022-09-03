@@ -101,7 +101,7 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
           category = excluded.category,
           input_bucket = excluded.input_bucket,
           region = excluded.region,
-          orginal_keyword = excluded.orginal_keyword,
+          orginal_keyword = excluded.orginal_keyword, 
           kw_length = excluded.kw_length
         RETURNING (domain)`;
     const queryText1 =
