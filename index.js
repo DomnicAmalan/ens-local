@@ -22,6 +22,7 @@ let response;
 exports.lambdaHandler = async (region) => {
     try {
       const requestArrays = []
+      const mainKeyword = []
       await googleTrends.dailyTrends({ geo: region }, async(err, res) => {
         if(res) {
           let resp = JSON.parse(res)
@@ -31,6 +32,7 @@ exports.lambdaHandler = async (region) => {
               let temp = resp[i].trendingSearches[j].title.query.replace(/\s+/g, '').toLowerCase()
               if(!requestArrays.includes(temp)) {
                 requestArrays.push(temp)
+                mainKeyword.push(resp[i].trendingSearches[j].title.query)
               }
             }
           }
@@ -53,7 +55,7 @@ exports.lambdaHandler = async (region) => {
             }
           }
           `
-          await apiCall(query, requestArrays, region, 'all', 'dailytrend')         
+          await apiCall(query, requestArrays, region, 'all', 'dailytrend', mainKeyword)         
         }        
       })
     } catch (err) {
@@ -62,23 +64,42 @@ exports.lambdaHandler = async (region) => {
     }
 };
 
-apiCall = async (query, requestArrays, region, category, bucket) => {
+apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) => {
   try {
+    // console.log(mainkeyword)
     const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
-    let resultArray = data.data.registrations.map((item) => item.labelName)
-    resultArray = [...new Set(resultArray)];
-    const checker = requestArrays.filter(x => !resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', true, '${region}', ${item.length}, '${category}', '${bucket}')`)
-    const nonchecker = requestArrays.filter(x => resultArray.includes(x)).map((item) => `('${item.replace("'", "''")}', false, '${region}', ${item.length}, '${category}', '${bucket}')`)
+    const presentIndex = []
+    let checker = []
+    let nonchecker = []
+    const presentItems = data.data.registrations.map((item, idx) => item.labelName)
+    for (let index = 0; index < requestArrays.length; index++) {
+      const element = requestArrays[index];
+      // const matched = presentItems.indexOf(element)
+      if(presentItems.includes(element)) {
+        // console.log(element, presentItems)
+        // console.log(element, matched)
+        const matched = mainkeyword[requestArrays.indexOf(element)]
+        if(matched) {
+          checker.push(`('${element}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+        }
+       
+      } else {
+        const matched = mainkeyword[requestArrays.indexOf(element)]
+        nonchecker.push(`('${element}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+      }
+
+    }
     const client = new Client({
       user: "postgres",
       host: "localhost",
       password: "admin",
       database: 'postgres'
     });
+    console.log(checker)
     await client.connect();
     const queryText =
       `INSERT INTO 
-        ens_domains(domain, status, region, kw_length, category, input_bucket) 
+        ens_domains(domain, status, region, kw_length, category, input_bucket, original_keyword) 
         VALUES ${checker}  
         ON CONFLICT (domain) 
         DO UPDATE SET 
@@ -89,7 +110,7 @@ apiCall = async (query, requestArrays, region, category, bucket) => {
         RETURNING (domain)`;
     const queryText1 =
       `INSERT INTO 
-        ens_domains(domain, status, region, kw_length, category, input_bucket) 
+        ens_domains(domain, status, region, kw_length, category, input_bucket, original_keyword) 
         VALUES ${nonchecker}  
         ON CONFLICT (domain) 
         DO UPDATE SET 
@@ -98,6 +119,7 @@ apiCall = async (query, requestArrays, region, category, bucket) => {
           input_bucket = excluded.input_bucket,
           region = excluded.region
         RETURNING (domain)`;
+    console.log(queryText1)
     if(checker.length){
       const res = await client.query(queryText);
     }
@@ -105,7 +127,7 @@ apiCall = async (query, requestArrays, region, category, bucket) => {
     const res1 = await client.query(queryText1);
     }
     await client.end();
-   return checker
+   return "checker"
   } catch(e) {
     console.log(e)
   }
@@ -121,12 +143,15 @@ exports.realtime = async (region, category='all') => {
         let resp = JSON.parse(res)
         resp = resp.storySummaries.trendingStories
         const requestArrays = []
+        const mainKeyWord = []
         for (let i=0; i < resp.length; i++) {
           for (let j = 0; j<resp[i].entityNames.length; j++) {
             const name = resp[i].entityNames[j].replace(/\s+/g, '').toLowerCase()
             if(!requestArrays.includes(name)){
               requestArrays.push(name)
+              mainKeyWord.push(resp[i].entityNames[j])
             }
+            
           }
         }
         const query = `
@@ -149,7 +174,7 @@ exports.realtime = async (region, category='all') => {
         }
         `
         
-        const resps = await apiCall(query, requestArrays, region, category, 'realtime')
+        const resps = await apiCall(query, requestArrays, region, category, 'realtime', mainKeyWord)
       }        
     })
   } catch (err) {
@@ -198,7 +223,6 @@ exports.checkExisting = async () => {
         }
         `
         const {data} = await axios.post(`https://api.thegraph.com/subgraphs/name/ensdomains/ens`, { query })
-        console.log(data)
         // const queryText1 = `UPDATE ens_domains SET `
         // const resps = await apiCall(query, requestArrays, region, category, 'realtime')
   } catch(e) {
@@ -207,6 +231,6 @@ exports.checkExisting = async () => {
   } 
 }
 
-this.lambdaHandler('US')
-this.realtime('US')
+// this.lambdaHandler('IN')
+this.realtime('IN', 'b')
 // this.checkExisting()
