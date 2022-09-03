@@ -80,7 +80,7 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
        
       } else {
         const matched = mainkeyword[requestArrays.indexOf(element)]
-        nonchecker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.split(' ').length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+        nonchecker.push(`('${element.replace("'", "''")}', false, '${region}', ${matched.split(' ').length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
       }
 
     }
