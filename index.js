@@ -75,12 +75,12 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
       if(presentItems.includes(element)) {
         const matched = mainkeyword[requestArrays.indexOf(element)]
         if(matched) {
-          checker.push(`('${element}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+          checker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
         }
        
       } else {
         const matched = mainkeyword[requestArrays.indexOf(element)]
-        nonchecker.push(`('${element}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
+        nonchecker.push(`('${element.replace("'", "''")}', true, '${region}', ${matched.length}, '${category}', '${bucket}', '${matched.replace("'", "''")}')`)
       }
 
     }
@@ -101,6 +101,8 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
           category = excluded.category,
           input_bucket = excluded.input_bucket,
           region = excluded.region
+          orginal_keyword = excluded.orginal_keyword,
+          kw_length = excluded.kw_length
         RETURNING (domain)`;
     const queryText1 =
       `INSERT INTO 
@@ -111,7 +113,9 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
           status = excluded.status,
           category = excluded.category,
           input_bucket = excluded.input_bucket,
-          region = excluded.region
+          region = excluded.region,
+          orginal_keyword = excluded.orginal_keyword,
+          kw_length = excluded.kw_length
         RETURNING (domain)`;
     if(checker.length){
       const res = await client.query(queryText);
