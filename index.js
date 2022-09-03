@@ -100,7 +100,7 @@ apiCall = async (query, requestArrays, region, category, bucket, mainkeyword) =>
           status = excluded.status,
           category = excluded.category,
           input_bucket = excluded.input_bucket,
-          region = excluded.region
+          region = excluded.region,
           orginal_keyword = excluded.orginal_keyword,
           kw_length = excluded.kw_length
         RETURNING (domain)`;
